@@ -34,6 +34,8 @@ Scan motifs in chromatin interaction anchor regions using reference genome and o
 --min-pet         # To filter out loops with value less than this strength
 ```
 
+To download the fasta files: https://knowledge.illumina.com/software/on-premises-software/software-on-premises-software-troubleshooting-list/000007409.
+
 ### 🚀 Example:
 
 ```bash
