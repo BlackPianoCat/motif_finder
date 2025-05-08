@@ -102,11 +102,4 @@ pip install biopython sortedcontainers vcf tqdm
 ## 📜 License
 
 MIT License — free to use and adapt. Attribution appreciated!
-
----
-
-## 👤 Author
-
-Sebastian Korsak · [skorsak@datascience.edu.pl](mailto:skorsak@datascience.edu.pl)
-
 Feel free to request enhancements or extra features.
