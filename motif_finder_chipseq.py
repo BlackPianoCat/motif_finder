@@ -5,6 +5,7 @@ from Bio import SeqIO, motifs
 from Bio.Seq import Seq
 from tqdm import tqdm
 import os
+import math
 
 # Load genome FASTA as dictionary {chrom: sequence}
 def load_genome(fasta_path):
@@ -30,19 +31,28 @@ def parse_bed(bed_file):
     print(f"Loaded {len(peaks)} peaks from {bed_file}")
     return peaks
 
+# Compute probabilistic score as fraction of signal on the left strand
+def compute_probabilistic_score(results):
+    left = sum(math.pow(2, score) for orient, score in results if orient < 0)
+    right = sum(math.pow(2, score) for orient, score in results if orient >= 0)
+    total = left + right
+    return -1 if total == 0 else left / total
+
 # Search a single sequence with the motif PSSM, return hits
-# If probabilistic=True, return (chr, pos, score)
+# If probabilistic=True, return (chr, pos, prob_left)
 # Otherwise return BED-like (chr, start, end, score, strand)
 def scan_sequence(pssm, sequence, chrom, start, threshold=7.0, probabilistic=False):
-    hits = []
-    for pos, score in pssm.search(sequence, threshold=threshold):
-        abs_pos = start + pos if pos >= 0 else start + len(sequence) + pos
-        if probabilistic:
-            hits.append((chrom, abs_pos, score))
-        else:
+    results = list(pssm.search(sequence, threshold=2.0 if probabilistic else threshold))
+    if probabilistic:
+        prob = compute_probabilistic_score(results)
+        return [(chrom, start, start + len(sequence), prob)]
+    else:
+        hits = []
+        for pos, score in results:
+            abs_pos = start + pos if pos >= 0 else start + len(sequence) + pos
             strand = "+" if pos >= 0 else "-"
             hits.append((chrom, abs_pos, abs_pos + len(pssm), score, strand))
-    return hits
+        return hits
 
 # Main execution logic
 def main():
@@ -51,7 +61,7 @@ def main():
     parser.add_argument("-g", "--genome", required=True, help="Reference genome FASTA")
     parser.add_argument("-m", "--motif", required=True, help="PFM motif file (JASPAR format)")
     parser.add_argument("-o", "--output", required=True, help="Output BED file with motif hits")
-    parser.add_argument("--prob", action="store_true", help="Enable probabilistic mode")
+    parser.add_argument("--prob", action="store_true", help="Enable probabilistic mode (returns fraction of left-oriented signal)")
     parser.add_argument("-t", "--threshold", type=float, default=7.0, help="PSSM score threshold")
     args = parser.parse_args()
 
@@ -77,8 +87,8 @@ def main():
     # Write results to output file
     with open(args.output, "w") as out:
         if args.prob:
-            for chrom, pos, score in hits:
-                out.write(f"{chrom}\t{pos}\t{pos+1}\t.\t{score:.3f}\n")
+            for chrom, start, end, prob in hits:
+                out.write(f"{chrom}\t{start}\t{end}\t.\t{prob:.3f}\n")
         else:
             for chrom, start, end, score, strand in hits:
                 out.write(f"{chrom}\t{start}\t{end}\t.\t{score:.3f}\t{strand}\n")
